@@ -18,6 +18,7 @@ def current_datetime(request):
     html = "<html><body>It is now %s.</body></html>" % now
     return HttpResponse(html)
 
+@csrf_exempt
 def location_list(request):
     """
     List all location coordinate, or create a new location.
@@ -26,9 +27,18 @@ def location_list(request):
         locations = Location.objects.all()
         serializer = LocationSerializer(locations, many=True)
         return JsonResponse(serializer.data, safe=False)
+    
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = LocationSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
 
     return JsonResponse({'Message':'Method Not Allowed'}, status=405)
 
+@csrf_exempt
 def location_detail(request, id):
     """
     Retrieve, update or delete a location coordinate.
