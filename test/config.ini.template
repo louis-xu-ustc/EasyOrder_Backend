@@ -1,0 +1,7 @@
+[database]
+ENGINE: django.db.backends.postgresql_psycopg2
+NAME: [db name]
+USER: [user name]
+PASSWORD: [user passwd]
+HOST: localhost
+PORT: 5432

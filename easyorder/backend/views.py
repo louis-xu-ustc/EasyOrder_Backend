@@ -6,8 +6,8 @@ from rest_framework.parsers import JSONParser
 
 import datetime
 
-from .models import Location
-from .serializers import LocationSerializer
+from .models import *
+from .serializers import *
 
 # Create your views here.
 def current_datetime(request):
@@ -19,6 +19,23 @@ def current_datetime(request):
     return HttpResponse(html)
 
 @csrf_exempt
+def dish_list(request):
+    '''
+    List all dish in menu, or create a new dish
+    '''
+    if request.method == 'GET':
+        dishes = Dish.objects.all()
+        serializer = DishSerializer(dishes, many=True)
+        return JsonResponse(serializer.data, safe=False)
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = DishSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse({'Message': 'Dish Created'}, status=201)
+        return JsonResponse(serializer.errors, status=400)
+
+@csrf_exempt
 def location_list(request):
     """
     List all location coordinate, or create a new location.
@@ -27,7 +44,7 @@ def location_list(request):
         locations = Location.objects.all()
         serializer = LocationSerializer(locations, many=True)
         return JsonResponse(serializer.data, safe=False)
-    
+
     elif request.method == 'POST':
         data = JSONParser().parse(request)
         serializer = LocationSerializer(data=data)
@@ -53,14 +70,14 @@ def location_detail(request, id):
     if request.method == 'GET':
         serializer = LocationSerializer(location)
         return JsonResponse(serializer.data)
-     
+
     elif request.method == 'PUT':
-        data = JSONParser().parse(request)    
+        data = JSONParser().parse(request)
         serializer = LocationSerializer(location, data=data)
-        
+
         if serializer.is_valid():
             serializer.save()
-            return JsonResponse(serializer.data)            
+            return JsonResponse(serializer.data)
         return JsonResponse(serializer.errors, status=400)
 
     elif request.method == 'DELETE':

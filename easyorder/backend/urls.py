@@ -11,4 +11,6 @@ urlpatterns = [
     url(r'^time/$', views.current_datetime),
     url(r'^locations/$', views.location_list),
     url(r'^locations/(?P<id>[0-9]+)/$', views.location_detail),
+    url(r'^dish/$', views.dish_list),
+    # url(r'^dish/(?P<id>[0-9]+)/$', views.dish_detail),
 ]
