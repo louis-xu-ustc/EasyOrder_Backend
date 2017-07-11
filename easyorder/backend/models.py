@@ -42,6 +42,9 @@ class Location(models.Model):
     '''
     Location data is used to share retailer's location with customers
     We can also use this model to save the target pickup locations set by retailer
+    The location at index 0 is the current location of the retailer.
+    Any locations with index larger than 0 is the pickup locaiton configured
+    by the retailers.
     '''
     name = models.CharField(max_length=100, default="Anonymous")
     latitude = models.FloatField()
@@ -53,5 +56,5 @@ class Notification(models.Model):
     We can create notification object when retailer want to push notification, and delete that one related
     to user when customer application retrieves the notification using long poll
     '''
-    user = models.ForeignKey(User, related_name='notification')
     content = models.CharField(max_length=500)
+    modified_at = models.DateTimeField(auto_now=True)

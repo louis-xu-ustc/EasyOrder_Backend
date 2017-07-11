@@ -5,6 +5,7 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 
 import datetime
+from django.utils.dateformat import format
 
 from .models import *
 from .serializers import *
@@ -36,12 +37,91 @@ def dish_list(request):
         return JsonResponse(serializer.errors, status=400)
 
 @csrf_exempt
-def location_list(request):
+def notification_content_with_timestamp(request, timestamp):
+    '''
+    Get the notification if there is a new one
+    '''
+    try:
+        notif = Notification.objects.all().first()
+    except IndexError:
+        return JsonResponse({'Message':'Server errors'}, status=500)
+
+    if request.method == 'GET':
+        last = datetime.datetime.fromtimestamp(int(timestamp))
+        timezone = notif.modified_at.tzinfo
+        last = last.replace(tzinfo=timezone)
+
+        if last < notif.modified_at:
+            data = NotificationSerializer(notif).data
+            data['notification'] = True
+            data['modified_at'] = format(notif.modified_at, 'U')
+            return JsonResponse(data)
+        else:
+            return JsonResponse({'notification':False})
+
+    return JsonResponse({'Message':'Method Not Allowed'}, status=405)
+
+@csrf_exempt
+def notification_content(request):
+    '''
+    Update/Get the notification
+    '''
+    if request.method == 'GET':
+
+        notif = Notification.objects.all().first()
+        if notif is None:
+            return JsonResponse({'notification':False})
+
+        data = NotificationSerializer(notif).data
+        data['notification'] = True
+        data['modified_at'] = format(notif.modified_at, 'U')
+        return JsonResponse(data)
+    elif request.method == 'PUT':
+        notif = Notification.objects.all().first()
+        if notif is None:
+            notif = Notification(content='dummy content')
+
+        data = JSONParser().parse(request)
+        serializer = NotificationSerializer(notif, data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data)
+        return JsonResponse(serializer.errors, status=400)
+
+    return JsonResponse({'Message':'Method Not Allowed'}, status=405)
+
+@csrf_exempt
+def current_location(request):
+    '''
+    Get/Update the cureent retailer location
+    '''
+    try:
+        location = Location.objects.all().first()
+    except IndexError:
+        return JsonResponse({'Message':'Server errors'}, status=500)
+
+    if request.method == 'GET':
+        serializer = LocationSerializer(location)
+        return JsonResponse(serializer.data)
+
+    elif request.method == 'PUT':
+        data = JSONParser().parse(request)
+        serializer = LocationSerializer(location, data=data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data)
+        return JsonResponse(serializer.errors, status=400)
+
+    return JsonResponse({'Message':'Method Not Allowed'}, status=405)
+
+@csrf_exempt
+def pickup_location_list(request):
     """
-    List all location coordinate, or create a new location.
+    List all pickup location coordinates, or insert a new location.
     """
     if request.method == 'GET':
-        locations = Location.objects.all()
+        locations = Location.objects.all()[1:]
         serializer = LocationSerializer(locations, many=True)
         return JsonResponse(serializer.data, safe=False)
 
@@ -52,6 +132,11 @@ def location_list(request):
             serializer.save()
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
+
+    elif request.method == 'DELETE':
+        first = Location.objects.all().first()
+        Location.objects.exclude(id=first.id).delete()
+        return HttpResponse(status=204)
 
     return JsonResponse({'Message':'Method Not Allowed'}, status=405)
 

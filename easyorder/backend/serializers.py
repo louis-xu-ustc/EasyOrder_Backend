@@ -3,6 +3,7 @@ from backend.models import *
 from drf_extra_fields.fields import Base64ImageField
 
 class LocationSerializer(serializers.HyperlinkedModelSerializer):
+
     class Meta:
         model = Location
         fields = ('latitude', 'longitude')
@@ -11,7 +12,7 @@ class LocationSerializer(serializers.HyperlinkedModelSerializer):
         return Location.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
-        instance.latitude = validated_data.get('lantitude', instance.latitude)
+        instance.latitude = validated_data.get('latitude', instance.latitude)
         instance.longitude = validated_data.get('longitude', instance.longitude)
         instance.save()
         return instance
@@ -26,3 +27,17 @@ class DishSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return Dish.objects.create(**validated_data)
+
+class NotificationSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Notification
+        fields = ('content',)
+
+    def create(self, validated_data):
+        return Notification.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        instance.content = validated_data.get('content', instance.content)
+        instance.save()
+        return instance
