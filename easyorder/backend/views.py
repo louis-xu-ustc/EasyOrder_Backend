@@ -41,9 +41,8 @@ def notification_content_with_timestamp(request, timestamp):
     '''
     Get the notification if there is a new one
     '''
-    try:
-        notif = Notification.objects.all().first()
-    except IndexError:
+    notif = Notification.objects.all().first()
+    if notif is None:
         return JsonResponse({'Message':'Server errors'}, status=500)
 
     if request.method == 'GET':
@@ -67,7 +66,6 @@ def notification_content(request):
     Update/Get the notification
     '''
     if request.method == 'GET':
-
         notif = Notification.objects.all().first()
         if notif is None:
             return JsonResponse({'notification':False})
@@ -95,16 +93,19 @@ def current_location(request):
     '''
     Get/Update the cureent retailer location
     '''
-    try:
-        location = Location.objects.all().first()
-    except IndexError:
-        return JsonResponse({'Message':'Server errors'}, status=500)
-
     if request.method == 'GET':
+        location = Location.objects.all().first()
+        if location is None:
+            return JsonResponse({'Message':'Server errors'}, status=500)
+
         serializer = LocationSerializer(location)
         return JsonResponse(serializer.data)
 
     elif request.method == 'PUT':
+        location = Location.objects.all().first()
+        if location is None:
+            location = Location(latitude=0, longitude=0)
+
         data = JSONParser().parse(request)
         serializer = LocationSerializer(location, data=data)
 
