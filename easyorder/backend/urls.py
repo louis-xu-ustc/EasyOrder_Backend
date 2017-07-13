@@ -13,10 +13,14 @@ urlpatterns = [
     url(r'^dish/$', views.dish_list),
     url(r'^dish/(?P<id>[0-9]+)/$', views.dish_detail),
     url(r'^rate/(?P<id>[0-9]+)/$', views.post_rate),
-    url(r'^locations/$', views.location_list),
-    url(r'^locations/(?P<id>[0-9]+)/$', views.location_detail),
     url(r'^current_location/$', views.current_location),
     url(r'^pickup_locations/$', views.pickup_location_list),
     url(r'^notification/$', views.notification_content),
     url(r'^notification/(?P<timestamp>[0-9]+)/$', views.notification_content_with_timestamp),
+    url(r'^order/$', views.order_list),
+    url(r'^order/(?P<id>[0-9]+)/$', views.order_amount),
+    url(r'^order/pay/(?P<id>[0-9]+)/$', views.order_pay),
+
+    # for debug only, commentted out in production
+    url(r'^location/(?P<id>[0-9]+)/$', views.location_detail),
 ]

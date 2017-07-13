@@ -144,6 +144,49 @@ def post_rate(request, id):
 
     return JsonResponse({'Message':'Method Not Allowed'}, status=405)
 
+@csrf_exempt
+def order_list(request):
+    '''
+    List all orders, add a new order, or clear the order List
+    '''
+    if request.method == 'GET':
+        dishes = Dish.objects.all()
+        data = []
+
+        for dish in dishes:
+            item = {
+                'dish':dish.id,
+                'num':dish.order.count(),
+            }
+            data.append(item)
+
+        return JsonResponse(data, safe=False)
+
+    if request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = OrderSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+
+    return JsonResponse({'Message':'Method Not Allowed'}, status=405)
+
+def order_amount(request, id):
+    '''
+    Get the number of order based on dish id
+    '''
+    if request.method == 'GET':
+        try:
+            dish = Dish.objects.get(id=id)
+        except ObjectDoesNotExist:
+            return JsonResponse({'Message':'Invalid dish id'}, status=403)
+
+        count = dish.order.count()
+        return JsonResponse({'dish':id,'num':count})
+
+    return JsonResponse({'Message':'Method Not Allowed'}, status=405)
+
 # Tab2 Methods
 
 @csrf_exempt
@@ -163,7 +206,6 @@ def notification_content_with_timestamp(request, timestamp):
         if last < notif.modified_at:
             data = NotificationSerializer(notif).data
             data['notification'] = True
-            data['modified_at'] = format(notif.modified_at, 'U')
             return JsonResponse(data)
         else:
             return JsonResponse({'notification':False})
@@ -182,8 +224,8 @@ def notification_content(request):
 
         data = NotificationSerializer(notif).data
         data['notification'] = True
-        data['modified_at'] = format(notif.modified_at, 'U')
         return JsonResponse(data)
+
     elif request.method == 'PUT':
         notif = Notification.objects.all().first()
         if notif is None:
@@ -279,6 +321,34 @@ def location_detail(request, id):
     elif request.method == 'DELETE':
         location.delete()
         return HttpResponse(status=204)
+
+    return JsonResponse({'Message':'Method Not Allowed'}, status=405)
+
+# Tab 3 Methods
+
+@csrf_exempt
+def order_pay(request, id):
+    '''
+    pay the order, one has to specify the user id to complete the payment
+    '''
+    if request.method == 'PUT':
+        try:
+            user = User.objects.get(id=id)
+        except ObjectDoesNotExist:
+            return JsonResponse({'Message':'Invalid user id'}, status=403)
+
+        orders = user.order.all()
+        pay = False
+        for order in orders:
+            if order.paid == False:
+                pay = True
+                order.paid = True
+                order.save()
+
+        if pay == False:
+            return JsonResponse({'Message':'Payment has already been completed'})
+        else:
+            return JsonResponse({'Message':'Payment accepted'})
 
     return JsonResponse({'Message':'Method Not Allowed'}, status=405)
 

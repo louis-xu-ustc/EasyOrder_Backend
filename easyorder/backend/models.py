@@ -1,5 +1,7 @@
 from django.db import models
 
+from django.utils.dateformat import format
+
 # Persistent Data Models
 
 class User(models.Model):
@@ -12,6 +14,9 @@ class User(models.Model):
     # twitterToken = models.CharField(max_length=100)
     name = models.CharField(max_length=100)
 
+    def __str__(self):
+        return "user: " + self.name
+
 class Dish(models.Model):
     '''
     Name:          name of the dish
@@ -21,8 +26,11 @@ class Dish(models.Model):
     '''
     name = models.CharField(max_length=100)
     price = models.IntegerField()
-    photo = models.ImageField(upload_to='dishes')
+    photo = models.ImageField(upload_to='dishes', blank=True)
     rate = models.FloatField(default=0.0)
+
+    def __str__(self):
+        return "dish: " + self.name + ", price: " + str(self.price)
 
 class Order(models.Model):
     '''
@@ -31,10 +39,14 @@ class Order(models.Model):
     Amount:        specify how many serves ordered
     Paid:          whether this order has been paid
     '''
-    user = models.ForeignKey(User, related_name='order')
-    dish = models.ForeignKey(Dish, related_name='order')
+    user = models.ForeignKey(User, related_name='order', on_delete=models.CASCADE)
+    dish = models.ForeignKey(Dish, related_name='order', on_delete=models.CASCADE)
     amount = models.IntegerField()
-    paid = models.BooleanField()
+    paid = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return "order: " + self.dish.name + ", by " + self.user.name
 
 class Vote(models.Model):
     '''
@@ -57,6 +69,9 @@ class Location(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
 
+    def __str__(self):
+        return "location: (" + str(self.latitude) + ", " + str(self.longitude) + ")"
+
 # Temporary Notification Model
 class Notification(models.Model):
     '''
@@ -65,3 +80,6 @@ class Notification(models.Model):
     '''
     content = models.CharField(max_length=500)
     modified_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "notification: " + self.content + "(" + format(self.modified_at, 'U') + ")"
