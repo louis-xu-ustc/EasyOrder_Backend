@@ -18,13 +18,11 @@ class Dish(models.Model):
     Price:         price of each serve
     Photo:         Imagefield is a File object, where we usually save actual image in media/ directory. Encode/Decode image to Base64 format when doing REST API call
     Rate:          score of this dish, from 0.0-5.0
-    RateNum:       number of rate votes, used to calculate further rate score
     '''
     name = models.CharField(max_length=100)
     price = models.IntegerField()
     photo = models.ImageField(upload_to='dishes')
-    rate = models.FloatField()
-    rateNum = models.IntegerField()
+    rate = models.FloatField(default=0.0)
 
 class Order(models.Model):
     '''
@@ -37,6 +35,15 @@ class Order(models.Model):
     dish = models.ForeignKey(Dish, related_name='order')
     amount = models.IntegerField()
     paid = models.BooleanField()
+
+class Vote(models.Model):
+    '''
+    User:          point to the user object made the vote
+    Dish:          point to the dish object user voted on
+    '''
+    user = models.ForeignKey(User, related_name='vote')
+    dish = models.ForeignKey(Dish, related_name='vote')
+    rate = models.IntegerField()
 
 class Location(models.Model):
     '''

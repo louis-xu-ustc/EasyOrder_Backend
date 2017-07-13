@@ -23,10 +23,21 @@ class DishSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Dish
-        fields = ('name', 'price', 'rate', 'rateNum', 'photo')
+        fields = ('name', 'price', 'rate', 'photo', 'id')
 
     def create(self, validated_data):
-        return Dish.objects.create(**validated_data)
+        dish = Dish.objects.create(**validated_data)
+
+        # must initialize new dish rate to 0.0 (prevent retailer fake score)
+        dish.rate = 0.0
+
+        return dish
+
+class UserSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ('twitterID', 'name')
 
 class NotificationSerializer(serializers.ModelSerializer):
 
@@ -41,3 +52,4 @@ class NotificationSerializer(serializers.ModelSerializer):
         instance.content = validated_data.get('content', instance.content)
         instance.save()
         return instance
+

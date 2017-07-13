@@ -19,6 +19,33 @@ def current_datetime(request):
     html = "<html><body>It is now %s.</body></html>" % now
     return HttpResponse(html)
 
+# Tab 1 Methods
+
+@csrf_exempt
+def modify_user(request):
+    '''
+    Create new user using twitter ID
+    '''
+
+    data = JSONParser().parse(request)
+
+    if request.method == 'POST':
+        serializer = UserSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse({'Message': 'User Created'}, status=201)
+        return JsonResponse(serializer.errors, status=400)
+
+    elif request.method == 'DELETE':
+        user = User.objects.filter(twitterID=data['twitterID']).first()
+        if user is None:
+            return HttpResponse(status=404)
+        user.delete()
+        return HttpResponse(status=204)
+
+    return JsonResponse({'Message':'Method Not Allowed'}, status=405)
+
+
 @csrf_exempt
 def dish_list(request):
     '''
@@ -35,6 +62,89 @@ def dish_list(request):
             serializer.save()
             return JsonResponse({'Message': 'Dish Created'}, status=201)
         return JsonResponse(serializer.errors, status=400)
+
+    return JsonResponse({'Message':'Method Not Allowed'}, status=405)
+
+@csrf_exempt
+def dish_detail(request, id):
+    """
+    Retrieve or delete a dish
+    """
+    index = int(id)
+    dish = Dish.objects.filter(id=index).first()
+
+    if dish is None:
+        return HttpResponse(status=404)
+
+    if request.method == 'GET':
+        serializer = DishSerializer(dish)
+        return JsonResponse(serializer.data, safe=False)
+
+    # PUT method not supported (to modify a dish, delete and post new one)
+
+    elif request.method == 'DELETE':
+        dish.delete()
+        return HttpResponse(status=204)
+
+    return JsonResponse({'Message':'Method Not Allowed'}, status=405)
+
+
+@csrf_exempt
+def post_rate(request, id):
+    """
+    Update the rate of a dish
+    """
+
+    # Get dish from URI
+    index = int(id)
+    dish = Dish.objects.filter(id=index).first()
+    if dish is None:
+        return HttpResponse(status=404)
+
+    # Get vote user from JSON content
+    data = JSONParser().parse(request)
+    if 'user' not in data:
+        return HttpResponse(status=403)
+    user = User.objects.filter(twitterID=data['user']).first()
+    if user is None:
+        return HttpResponse(status=404)
+
+    # Identify the vote object in DB
+    vote = Vote.objects.filter(user=user, dish=dish).first()
+
+    if request.method == 'PUT':
+        try:
+            # create vote if user not voted before
+            if vote is None:
+                vote = Vote.objects.create(user=user, dish=dish, rate=data['rate'])
+                vote.save()
+
+            # modify vote score if user has voted before towards the dish
+            else:
+                vote.rate = data['rate']
+                vote.save()
+
+        except Exception:
+            return HttpResponse(status=403)
+
+        update_dish_rate(dish)
+
+        return JsonResponse({'Message':'Vote Created'}, status=201)
+
+    elif request.method == 'DELETE':
+
+        if vote is None:
+            return HttpResponse(status=404)
+        else:
+            vote.delete()
+
+        update_dish_rate(dish)
+
+        return HttpResponse(status=204)
+
+    return JsonResponse({'Message':'Method Not Allowed'}, status=405)
+
+# Tab2 Methods
 
 @csrf_exempt
 def notification_content_with_timestamp(request, timestamp):
@@ -171,3 +281,14 @@ def location_detail(request, id):
         return HttpResponse(status=204)
 
     return JsonResponse({'Message':'Method Not Allowed'}, status=405)
+
+# Helper Function
+def update_dish_rate(dish):
+    """
+    After user voted or canceled voting, the score of a dish should be updated
+    """
+    votes = list(dish.vote.all())
+    if len(votes) != 0:
+        new_score = float(sum(map(lambda x:x.rate, votes))) / len(votes)
+        dish.rate = new_score
+        dish.save()
