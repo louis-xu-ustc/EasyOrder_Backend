@@ -9,7 +9,7 @@ from . import views
 urlpatterns = [
     # url(r'^', include(router.urls)),
     url(r'^time/$', views.current_datetime),
-    url(r'^user/$', views.modify_user),
+    url(r'^user/$', views.user_info),
     url(r'^dish/$', views.dish_list),
     url(r'^dish/(?P<id>[0-9]+)/$', views.dish_detail),
     url(r'^rate/(?P<id>[0-9]+)/$', views.post_rate),
@@ -19,8 +19,8 @@ urlpatterns = [
     url(r'^notification/(?P<timestamp>[0-9]+)/$', views.notification_content_with_timestamp),
     url(r'^order/$', views.order_list),
     url(r'^order/(?P<id>[0-9]+)/$', views.order_amount),
-    url(r'^order/pay/(?P<id>[0-9]+)/$', views.order_pay),
+    url(r'^order/pay/$', views.order_pay),
 
     # for debug only, commentted out in production
-    url(r'^location/(?P<id>[0-9]+)/$', views.location_detail),
+    # url(r'^location/(?P<id>[0-9]+)/$', views.location_detail),
 ]

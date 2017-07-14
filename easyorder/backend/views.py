@@ -22,14 +22,13 @@ def current_datetime(request):
 # Tab 1 Methods
 
 @csrf_exempt
-def modify_user(request):
+def user_info(request):
     '''
-    Create new user using twitter ID
+    Create/Delete users, or get user list information
     '''
-
-    data = JSONParser().parse(request)
 
     if request.method == 'POST':
+        data = JSONParser().parse(request)
         serializer = UserSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
@@ -37,14 +36,26 @@ def modify_user(request):
         return JsonResponse(serializer.errors, status=400)
 
     elif request.method == 'DELETE':
+        data = JSONParser().parse(request)
+        if 'twitterID' not in data:
+            return HttpResponse(status=404)
         user = User.objects.filter(twitterID=data['twitterID']).first()
         if user is None:
             return HttpResponse(status=404)
         user.delete()
         return HttpResponse(status=204)
 
-    return JsonResponse({'Message':'Method Not Allowed'}, status=405)
+    elif request.method == 'GET':
+        res = []
+        users = User.objects.all()
+        for user in users:
+            # only return users making orders
+            if user.order.count() > 0:
+                paid = user.order.first().paid
+                res.append({'twitterID': user.twitterID, 'name': user.name, 'paid': paid})
+        return JsonResponse(res, safe=False)
 
+    return JsonResponse({'Message':'Method Not Allowed'}, status=405)
 
 @csrf_exempt
 def dish_list(request):
@@ -74,7 +85,7 @@ def dish_detail(request, id):
     dish = Dish.objects.filter(id=index).first()
 
     if dish is None:
-        return HttpResponse(status=404)
+        return JsonResponse({'Message':'Dish not found'}, status=404)
 
     if request.method == 'GET':
         serializer = DishSerializer(dish)
@@ -84,7 +95,7 @@ def dish_detail(request, id):
 
     elif request.method == 'DELETE':
         dish.delete()
-        return HttpResponse(status=204)
+        return JsonResponse({'Message':'Dish deleted'}, status=204)
 
     return JsonResponse({'Message':'Method Not Allowed'}, status=405)
 
@@ -99,15 +110,15 @@ def post_rate(request, id):
     index = int(id)
     dish = Dish.objects.filter(id=index).first()
     if dish is None:
-        return HttpResponse(status=404)
+        return JsonResponse({'Message':'Dish not found'}, status=404)
 
     # Get vote user from JSON content
     data = JSONParser().parse(request)
-    if 'user' not in data:
-        return HttpResponse(status=403)
+    if 'user' not in data or 'rate' not in data:
+        return JsonResponse({'Message':'Invalid Arguments'}, status=403)
     user = User.objects.filter(twitterID=data['user']).first()
     if user is None:
-        return HttpResponse(status=404)
+        return JsonResponse({'Message':'User not found'}, status=404)
 
     # Identify the vote object in DB
     vote = Vote.objects.filter(user=user, dish=dish).first()
@@ -125,7 +136,7 @@ def post_rate(request, id):
                 vote.save()
 
         except Exception:
-            return HttpResponse(status=403)
+            return JsonResponse({'Message':'Rate vote cannot be created'}, status=403)
 
         update_dish_rate(dish)
 
@@ -140,7 +151,7 @@ def post_rate(request, id):
 
         update_dish_rate(dish)
 
-        return HttpResponse(status=204)
+        return JsonResponse({'Message':'Rate vote deleted'}, status=204)
 
     return JsonResponse({'Message':'Method Not Allowed'}, status=405)
 
@@ -164,11 +175,21 @@ def order_list(request):
 
     if request.method == 'POST':
         data = JSONParser().parse(request)
-        serializer = OrderSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data, status=201)
-        return JsonResponse(serializer.errors, status=400)
+        if 'twitterID' not in data or 'amount' not in data or 'dish' not in data:
+            return JsonResponse({'Message':'Invalid Arguments'}, status=403)
+
+        user = User.objects.filter(twitterID=data['twitterID']).first()
+        dish = Dish.objects.filter(id=data['dish']).first()
+        if not user or not dish:
+            return JsonResponse({'Message':'User or dish not found'}, status=404)
+
+        try:
+            order = Order.objects.create(user=user, dish=dish, amount=data['amount'], paid=False)
+            order.save()
+        except Exception:
+            return JsonResponse({'Message':'Create order failed'}, status=403)
+
+        return JsonResponse({'Message':'Order created'}, status=201)
 
     return JsonResponse({'Message':'Method Not Allowed'}, status=405)
 
@@ -289,7 +310,7 @@ def pickup_location_list(request):
     elif request.method == 'DELETE':
         first = Location.objects.all().first()
         Location.objects.exclude(id=first.id).delete()
-        return HttpResponse(status=204)
+        return JsonResponse({'Message':'Location not found'}, status=404)
 
     return JsonResponse({'Message':'Method Not Allowed'}, status=405)
 
@@ -303,7 +324,7 @@ def location_detail(request, id):
     if index < count:
         location = Location.objects.all()[index]
     else:
-        return HttpResponse(status=404)
+        return JsonResponse({'Message':'Location not found'}, status=404)
 
     if request.method == 'GET':
         serializer = LocationSerializer(location)
@@ -320,22 +341,25 @@ def location_detail(request, id):
 
     elif request.method == 'DELETE':
         location.delete()
-        return HttpResponse(status=204)
+        return JsonResponse({'Message':'Location deleted'}, status=204)
 
     return JsonResponse({'Message':'Method Not Allowed'}, status=405)
 
 # Tab 3 Methods
 
 @csrf_exempt
-def order_pay(request, id):
+def order_pay(request):
     '''
-    pay the order, one has to specify the user id to complete the payment
+    pay the order, one has to specify the user twitterID to complete the payment
     '''
     if request.method == 'PUT':
-        try:
-            user = User.objects.get(id=id)
-        except ObjectDoesNotExist:
-            return JsonResponse({'Message':'Invalid user id'}, status=403)
+
+        data = JSONParser().parse(request)
+        if 'twitterID' not in data:
+            return JsonResponse({'Message':'User id not specified'}, status=403)
+        user = User.objects.filter(twitterID=data['twitterID']).first()
+        if user is None:
+            return JsonResponse({'Message':'User id invalid'}, status=404)
 
         orders = user.order.all()
         pay = False
