@@ -25,7 +25,7 @@ class Dish(models.Model):
     Rate:          score of this dish, from 0.0-5.0
     '''
     name = models.CharField(max_length=100)
-    price = models.IntegerField()
+    price = models.FloatField()
     photo = models.ImageField(upload_to='dishes', blank=True)
     rate = models.FloatField(default=0.0)
 
@@ -83,3 +83,12 @@ class Notification(models.Model):
 
     def __str__(self):
         return "notification: " + self.content + "(" + format(self.modified_at, 'U') + ")"
+
+# Receive the pre_delete signal and delete the file associated with the model instance.
+from django.db.models.signals import pre_delete
+from django.dispatch.dispatcher import receiver
+
+@receiver(pre_delete, sender=Dish)
+def dish_model_delete_photo_handler(sender, instance, **kwargs):
+    # Pass false so FileField doesn't save the model.
+    instance.photo.delete(False)
