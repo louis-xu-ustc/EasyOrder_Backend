@@ -310,7 +310,7 @@ def pickup_location_list(request):
     elif request.method == 'DELETE':
         first = Location.objects.all().first()
         Location.objects.exclude(id=first.id).delete()
-        return JsonResponse({'Message':'Location not found'}, status=404)
+        return JsonResponse({'Message':'Reset all pickup locations'}, status=205)
 
     return JsonResponse({'Message':'Method Not Allowed'}, status=405)
 
