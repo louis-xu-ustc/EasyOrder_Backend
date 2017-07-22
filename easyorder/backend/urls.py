@@ -18,6 +18,7 @@ urlpatterns = [
     url(r'^notification/$', views.notification_content),
     url(r'^notification/(?P<timestamp>[0-9]+)/$', views.notification_content_with_timestamp),
     url(r'^order/$', views.order_list),
+    url(r'^order/user/(?P<id>[0-9]+)/$', views.order_user),
     url(r'^order/(?P<id>[0-9]+)/$', views.order_amount),
     url(r'^order/pay/$', views.order_pay),
 
