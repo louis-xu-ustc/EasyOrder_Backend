@@ -21,6 +21,8 @@ urlpatterns = [
     url(r'^order/user/(?P<id>[0-9]+)/$', views.order_user),
     url(r'^order/(?P<id>[0-9]+)/$', views.order_amount),
     url(r'^order/pay/$', views.order_pay),
+    url(r'^payment/client_token/$', views.client_token),
+    url(r'^payment/checkout/$', views.create_purchase),
 
     # for debug only, commentted out in production
     # url(r'^location/(?P<id>[0-9]+)/$', views.location_detail),
