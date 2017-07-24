@@ -208,6 +208,37 @@ def order_list(request):
 
     return JsonResponse({'message':'method not allowed'}, status=405)
 
+@csrf_exempt
+def create_orders(request):
+    if request.method == 'POST':
+        data = JSONParser().parse(request)
+        if 'twitterID' not in data or 'order' not in data:
+            return JsonResponse({'message':'invalid arguments'}, status=403)
+
+        user = User.objects.filter(twitterID=data['twitterID']).first()
+        if not user:
+                return JsonResponse({'message':'user not found'}, status=404)
+
+        for order in data['order']:
+            if 'dish' not in order or 'amount' not in order:
+                return JsonResponse({'message':'invalid arguments'}, status=403)
+
+            dish = Dish.objects.filter(id=order['dish']).first()
+            if not dish:
+                return JsonResponse({'message':'dish not found'}, status=404)
+
+            try:
+                order = Order.objects.create(user=user, dish=dish, amount=order['amount'], paid=False)
+                order.save()
+            except Exception:
+                return JsonResponse({'message':'create order failed'}, status=403)
+
+        return JsonResponse({'message':'order created'}, status=201)
+
+    return JsonResponse({'message':'method not allowed'}, status=405)
+
+
+@csrf_exempt
 def order_amount(request, id):
     '''
     Get the number of order based on dish id
@@ -226,16 +257,16 @@ def order_amount(request, id):
 
 def order_user(request, id):
     if request.method == 'GET':
-        try:
-            user = User.objects.get(twitterID=id)
-        except ObjectDoesNotExist:
+        user = User.objects.filter(twitterID=id).first()
+        if user is None:
             return JsonResponse({'Message':'Invalid user id'}, status=403)
 
         orders = Order.objects.filter(user=user)
         res = []
         for order in orders:
-            dish = order.dish
-            res.append({"dish":dish.name, "price":dish.price, "amount":order.amount})
+            if order.paid == False:
+                dish = order.dish
+                res.append({"dish":dish.name, "price":dish.price, "amount":order.amount})
         return JsonResponse(res, safe=False)
 
     return JsonResponse({'message':'method not allowed'}, status=405)
@@ -418,7 +449,47 @@ def client_token(request):
     return HttpResponse(status=405)
 
 @csrf_exempt
-def create_purchase(request):
+def create_purchase_android(request):
+    """
+    Place the order
+    """
+    if request.method == 'POST':
+        data = JSONParser().parse(request)
+        if 'payment_method_nonce' in data and 'user_id' in data:
+
+            user = User.objects.filter(twitterID=data['user_id']).first()
+            if user is None:
+                return JsonResponse({'message':'user id invalid'}, status=404)
+
+            orders = user.order.all()
+            total = 0.0;
+            for order in orders:
+                if order.paid == False:
+                    total = total + (order.amount * order.dish.price)
+
+            if total > 0:
+                # use payment method,
+                result = braintree.Transaction.sale({
+                    "amount": str(total),  # modify the amount here to reflect the real case
+                    "payment_method_nonce": data['payment_method_nonce'],
+                    "options": {
+                        "submit_for_settlement": True
+                    }
+                })
+
+                if result.is_success:
+                    return JsonResponse({'message':'payment is successful'})
+                else:
+                    return JsonResponse({'message':'payment failed'})
+            else:
+                return JsonResponse({'message':'payment has already been completed'})
+
+        return JsonResponse({'message':'invalid input arguments'}, status=403)
+
+    return JsonResponse({'message':'method not allowed'}, status=405)
+
+@csrf_exempt
+def create_purchase_ios(request):
     """
     Place the order
     """
@@ -447,17 +518,17 @@ def create_purchase(request):
                 })
 
                 if result.is_success:
-                    pass
+                    return JsonResponse({'message':'payment is successful'})
                 else:
-                    pass
-
-                return JsonResponse({'status':'payment is successful'})
+                    return JsonResponse({'message':'payment failed'})
             else:
                 return JsonResponse({'message':'payment has already been completed'})
 
         return JsonResponse({'status':'an error occurs'}, status=404)
 
     return JsonResponse({'message':'method not allowed'}, status=405)
+
+
 
 # Helper Function
 def update_dish_rate(dish):
