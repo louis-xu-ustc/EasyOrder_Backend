@@ -225,7 +225,7 @@ def create_orders(request):
 
         user = User.objects.filter(twitterID=data['twitterID']).first()
         if not user:
-                return JsonResponse({'message':'user not found'}, status=404)
+            return JsonResponse({'message':'user not found'}, status=404)
 
         for order in data['order']:
             if 'dish' not in order or 'amount' not in order:

@@ -22,7 +22,6 @@ urlpatterns = [
     url(r'^order/history/(?P<id>[0-9]+)/$', views.history_order_user),
     url(r'^order/user/(?P<id>[0-9]+)/$', views.order_user),
     url(r'^order/(?P<id>[0-9]+)/$', views.order_amount),
-    url(r'^order/pay/$', views.order_pay),
     url(r'^payment/client_token/$', views.client_token),
     url(r'^payment/checkout/$', views.create_purchase_ios),
     url(r'^payment/checkout/android/$', views.create_purchase_android),

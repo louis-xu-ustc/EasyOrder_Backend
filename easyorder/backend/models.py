@@ -53,8 +53,8 @@ class Vote(models.Model):
     User:          point to the user object made the vote
     Dish:          point to the dish object user voted on
     '''
-    user = models.ForeignKey(User, related_name='vote')
-    dish = models.ForeignKey(Dish, related_name='vote')
+    user = models.ForeignKey(User, related_name='vote', on_delete=models.CASCADE)
+    dish = models.ForeignKey(Dish, related_name='vote', on_delete=models.CASCADE)
     rate = models.IntegerField()
 
 class Location(models.Model):
