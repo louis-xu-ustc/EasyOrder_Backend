@@ -6,6 +6,7 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 
 import datetime
+from pytz import utc, timezone
 from django.utils.dateformat import format
 
 from .models import *
@@ -62,8 +63,9 @@ def user_info(request):
         users = User.objects.all()
         for user in users:
             # only return users making orders
-            if user.order.count() > 0:
-                paid = user.order.first().paid
+            orders = get_effective_orders(user)
+            if orders.count() > 0:
+                paid = orders.first().paid
                 res.append({'twitterID': user.twitterID, 'name': user.name, 'paid': paid})
         return JsonResponse(res, safe=False)
 
@@ -180,9 +182,15 @@ def order_list(request):
         data = []
 
         for dish in dishes:
+            amounts = map(lambda order: order.amount, get_effective_orders(dish).all())
+
             item = {
-                'dish':dish.id,
-                'num':dish.order.count(),
+                'id':dish.id,
+                'name':dish.name,
+                'price':dish.price,
+                'rate':dish.rate,
+                'photo':dish.photo.url,
+                'num':sum(amounts),
             }
             data.append(item)
 
@@ -250,18 +258,19 @@ def order_amount(request, id):
         except ObjectDoesNotExist:
             return JsonResponse({'message':'invalid dish id'}, status=403)
 
-        count = dish.order.count()
+        count = get_effective_orders(dish).count()
         return JsonResponse({'dish':id,'num':count})
 
     return JsonResponse({'message':'method not allowed'}, status=405)
 
+@csrf_exempt
 def order_user(request, id):
     if request.method == 'GET':
         user = User.objects.filter(twitterID=id).first()
         if user is None:
             return JsonResponse({'Message':'Invalid user id'}, status=403)
 
-        orders = Order.objects.filter(user=user)
+        orders = get_effective_orders(user).all()
         res = []
         for order in orders:
             if order.paid == False:
@@ -270,6 +279,27 @@ def order_user(request, id):
         return JsonResponse(res, safe=False)
 
     return JsonResponse({'message':'method not allowed'}, status=405)
+
+@csrf_exempt
+def history_order_user(request, id):
+    if request.method == 'GET':
+        user = User.objects.filter(twitterID=id).first()
+        if user is None:
+            return JsonResponse({'Message':'Invalid user id'}, status=403)
+
+        orders = user.order.all().order_by('-created_at')
+        res = []
+        count = 0
+        for order in orders:
+            dish = order.dish
+            res.append({"dish":dish.name, "price":dish.price, "amount":order.amount, "photo":dish.photo.url})
+            count += 1
+            if count >= 5:
+                break
+        return JsonResponse(res, safe=False)
+
+    return JsonResponse({'message':'method not allowed'}, status=405)
+
 
 # Tab2 Methods
 
@@ -423,7 +453,7 @@ def order_pay(request):
         if user is None:
             return JsonResponse({'message':'user id invalid'}, status=404)
 
-        orders = user.order.all()
+        orders = get_effective_orders(user).all()
         pay = False
         for order in orders:
             if order.paid == False:
@@ -461,7 +491,7 @@ def create_purchase_android(request):
             if user is None:
                 return JsonResponse({'message':'user id invalid'}, status=404)
 
-            orders = user.order.all()
+            orders = get_effective_orders(user).all()
             total = 0.0;
             for order in orders:
                 if order.paid == False:
@@ -494,14 +524,13 @@ def create_purchase_ios(request):
     Place the order
     """
     if request.method == 'POST':
-
         if 'payment_method_nonce' in request.POST and 'user_id' in request.POST:
 
             user = User.objects.filter(twitterID=request.POST['user_id']).first()
             if user is None:
                 return JsonResponse({'message':'user id invalid'}, status=404)
 
-            orders = user.order.all()
+            orders = get_effective_orders(user)
             total = 0.0;
             for order in orders:
                 if order.paid == False:
@@ -524,7 +553,7 @@ def create_purchase_ios(request):
             else:
                 return JsonResponse({'message':'payment has already been completed'})
 
-        return JsonResponse({'status':'an error occurs'}, status=404)
+        return JsonResponse({'message':'invalid input arguments'}, status=403)
 
     return JsonResponse({'message':'method not allowed'}, status=405)
 
@@ -540,3 +569,30 @@ def update_dish_rate(dish):
         new_score = float(sum(map(lambda x:x.rate, votes))) / len(votes)
         dish.rate = new_score
         dish.save()
+
+# Helper Function: get orders within this interval
+def get_effective_orders(relate_item):
+
+    cur_date = datetime.datetime.now()
+    delta = datetime.datetime.utcnow() - cur_date
+    hour = cur_date.hour
+
+    # 10AM - 2PM(noon) only return orders later than 6AM
+    # 3PM - 7PM only return orders later than 12PM
+
+    # if hour < 10 or hour >= 19:
+    #     return Order.objects.none()
+    # elif hour >= 10 and hour < 14:
+    #     thresh_date = datetime.datetime(cur_date.year, cur_date.month, cur_date.day, 10, 0)
+    # elif hour >= 15 and hour < 19:
+    #     thresh_date = datetime.datetime(cur_date.year, cur_date.month, cur_date.day, 15, 0)
+
+    # For Testing Purpose
+    thresh_date = cur_date - datetime.timedelta(hours=3)
+    thresh_date += delta
+    thresh_date = thresh_date.replace(tzinfo=utc)
+
+    if relate_item is None:
+        return Order.objects.filter(created_at__gte=thresh_date)
+    else:
+        return relate_item.order.filter(created_at__gte=thresh_date)

@@ -19,12 +19,13 @@ urlpatterns = [
     url(r'^notification/(?P<timestamp>[0-9]+)/$', views.notification_content_with_timestamp),
     url(r'^order/$', views.order_list),
     url(r'^order/bunch/$', views.create_orders),
+    url(r'^order/history/(?P<id>[0-9]+)/$', views.history_order_user),
     url(r'^order/user/(?P<id>[0-9]+)/$', views.order_user),
     url(r'^order/(?P<id>[0-9]+)/$', views.order_amount),
     url(r'^order/pay/$', views.order_pay),
     url(r'^payment/client_token/$', views.client_token),
     url(r'^payment/checkout/$', views.create_purchase_ios),
-    url(r'^payment/checkout/android$', views.create_purchase_android),
+    url(r'^payment/checkout/android/$', views.create_purchase_android),
 
     # for debug only, commentted out in production
     # url(r'^location/(?P<id>[0-9]+)/$', views.location_detail),
