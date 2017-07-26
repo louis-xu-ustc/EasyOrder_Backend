@@ -310,7 +310,7 @@ def notification_content_with_timestamp(request, timestamp):
     '''
     notif = Notification.objects.all().first()
     if notif is None:
-        return JsonResponse({'message':'server errors'}, status=500)
+        return JsonResponse({'notification':False})
 
     if request.method == 'GET':
         last = datetime.datetime.fromtimestamp(int(timestamp))
@@ -334,6 +334,13 @@ def notification_content(request):
     if request.method == 'GET':
         notif = Notification.objects.all().first()
         if notif is None:
+            return JsonResponse({'notification':False})
+
+        # check if notification too old (5 min)
+        curtime = datetime.datetime.utcnow()
+        curtime = curtime.replace(tzinfo=utc)
+        if (curtime - notif.modified_at).total_seconds() > 300:
+            notif.delete()
             return JsonResponse({'notification':False})
 
         data = NotificationSerializer(notif).data
@@ -440,34 +447,6 @@ def location_detail(request, id):
 
 # Tab 3 Methods
 
-@csrf_exempt
-def order_pay(request):
-    '''
-    pay the order, one has to specify the user twitterID to complete the payment
-    '''
-    if request.method == 'PUT':
-        data = JSONParser().parse(request)
-        if 'twitterID' not in data:
-            return JsonResponse({'message':'user id not specified'}, status=403)
-        user = User.objects.filter(twitterID=data['twitterID']).first()
-        if user is None:
-            return JsonResponse({'message':'user id invalid'}, status=404)
-
-        orders = get_effective_orders(user).all()
-        pay = False
-        for order in orders:
-            if order.paid == False:
-                pay = True
-                order.paid = True
-                order.save()
-
-        if pay == False:
-            return JsonResponse({'message':'payment has already been completed'})
-        else:
-            return JsonResponse({'message':'payment accepted'})
-
-    return JsonResponse({'message':'method not allowed'}, status=405)
-
 def client_token(request):
     """
     Get the client token needed to complete the payment
@@ -508,9 +487,10 @@ def create_purchase_android(request):
                 })
 
                 if result.is_success:
-                    return JsonResponse({'message':'payment is successful'})
+                    order_pay(user)
+                    return JsonResponse({'message':'payment is successful'}, status=200)
                 else:
-                    return JsonResponse({'message':'payment failed'})
+                    return JsonResponse({'message':'payment failed'}, status=501)
             else:
                 return JsonResponse({'message':'payment has already been completed'})
 
@@ -547,9 +527,10 @@ def create_purchase_ios(request):
                 })
 
                 if result.is_success:
-                    return JsonResponse({'message':'payment is successful'})
+                    order_pay(user)
+                    return JsonResponse({'message':'payment is successful'}, status=200)
                 else:
-                    return JsonResponse({'message':'payment failed'})
+                    return JsonResponse({'message':'payment failed'}, status=501)
             else:
                 return JsonResponse({'message':'payment has already been completed'})
 
@@ -596,3 +577,11 @@ def get_effective_orders(relate_item):
         return Order.objects.filter(created_at__gte=thresh_date)
     else:
         return relate_item.order.filter(created_at__gte=thresh_date)
+
+# Helper Function: update user payment information
+def order_pay(user):
+    orders = get_effective_orders(user).all()
+    for order in orders:
+        if order.paid == False:
+            order.paid = True
+            order.save()
