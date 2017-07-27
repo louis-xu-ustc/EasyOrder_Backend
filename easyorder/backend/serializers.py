@@ -12,7 +12,7 @@ class LocationSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Location
-        fields = ('latitude', 'longitude')
+        fields = ('latitude', 'longitude', 'name')
 
     def create(self, validated_data):
         return Location.objects.create(**validated_data)
