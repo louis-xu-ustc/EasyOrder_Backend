@@ -316,11 +316,10 @@ def notification_content_with_timestamp(request, timestamp):
         return JsonResponse({'notification':False})
 
     if request.method == 'GET':
-        last = datetime.datetime.fromtimestamp(int(timestamp))
-        timezone = notif.modified_at.tzinfo
-        last = last.replace(tzinfo=timezone)
+        last = int(notif.modified_at.strftime('%s'))
+        cur = int(timestamp)
 
-        if last < notif.modified_at:
+        if cur < last:
             data = NotificationSerializer(notif).data
             data['notification'] = True
             return JsonResponse(data)
