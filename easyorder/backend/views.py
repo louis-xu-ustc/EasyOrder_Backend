@@ -65,8 +65,11 @@ def user_info(request):
             # only return users making orders
             orders = get_effective_orders(user)
             if orders.count() > 0:
-                paid = orders.first().paid
-                res.append({'twitterID': user.twitterID, 'name': user.name, 'paid': paid})
+                is_paid = True
+                for order in orders.all():
+                    if not order.paid:
+                        is_paid = False
+                res.append({'twitterID': user.twitterID, 'name': user.name, 'paid': is_paid})
         return JsonResponse(res, safe=False)
 
     return JsonResponse({'message':'method not allowed'}, status=405)
